@@ -91,55 +91,72 @@ echo "wtmp Daten auslesen"
 #Fehler beseitigen
 last -F -f $TMP/wtmp_file | grep $2 | grep \(*\) >$TMP/log_file
 
-#Loginzeit ausschneiden
-		LOGIN=$(cut -c 44-63 $TMP/log_file)
-		echo $LOGIN > $TMP/login
-#Logoutzeit ausschneiden
-		LOGOUT=$(cut -c 71-90 $TMP/log_file)
-		echo $LOGOUT > $TMP/logout
-
-for var in $TMP/log_file
-
-	do 
-		#ausgeben der der Login, -out Daten des Users
-		echo $var
-	
-		
-		
+ueberhang()
+{
+        
+        if [ $COUNT -gt 1 ]
+        then
+                if [ $LOGOUT2 -gt $LOGIN ]
+                then
+                            if [ $LOGOUT2 -lt $LOGOUT ]
+                            then
+                                LOGIN=$(($LOGOUT2-LOGIN))
+                            fi
+                    let COUNT=$COUNT-1
+                    
+                fi
+        else
+                if [ $LOGOUT2 -lt $LOGOUT ]
+                then
+                        LOGIN=$(($LOGOUT2-LOGIN))
+                fi
+        fi
+}
+ 
+COUNT=$(cat $TMP/log_file | wc -l) 
 		#Zeilen auswerten und in LITIME speichern
+		
 		while read -r line
 			do
-				LITIME=$(date -d "$line" +%s)
-				echo "LITITME = $LITIME"
-#auch überprüfen wie unten oder if [ time == "" ] dann überspringe Zeile
-# also führe nur solange aus wie if [ time -ne "" ] ungleich not equel
-					GLITIME=$((GLITIME+$LITIME))
-					echo "GLITIME= $GLITIME"
-			done <<< "$LOGIN"
+					#Kann diesen Befehl nicht finden 
+					LOGOUT_TIME=$( $line | cut -c 67-90)
+					echo "LOGOUT=$LOGOUT"
+					
+					
+					#kann diesen Befehl nicht finden
+					LOGIN_TIME=$( $line | cut -c 40-63)
+					echo "LOGIN=$LOGIN"
+					
+					LOGOUT=$(date -d "$LOGOUT_TIME" +%s)
+					LOGIN=$(date -d "$LOGIN_TIME" +%s)
+					echo $LOGIN_TIME
+					
+					ueberhang
+					
+					
+					LOGIN2=$LOGIN
+					echo "LOGIN2=$LOGIN2"
+					LOGOUT2=$LOGOUT
+					echo "LOGOUT2=$LOGOUT2"
+					
+					TOTAL=$(($LOGOUT-$LOGIN))
+					RESULT=$((RESULT+$TOTAL))
+			done < "$TMP/log_file"
 		
-		echo "Gesammte Loginzeit: $GLITIME"
+		#echo "Gesammte Loginzeit: $RESULT"
 		
 		#Zeilen auswerten und in LOTIME speichern
-		while read -r line2
-			do
-				LOTIME=$(date -d "$line2" +%s)
-				echo "LOTIME = $LOTIME"
-#hier überprüfen ob die werte auch zeiten sind bsp if [ LOTIME istgleich ZIFFER bzw Zahl [0-9]* oder \d oder [[:digit:]]
-					GLOTIME=$((GLOTIME+$LOTIME))
-					echo "GLOTIME = $GLOTIME"
-			done <<< "$LOGOUT"
-	    	
-		echo "Die Gesammte Logoutzeit: $GLOTIME"
+		
 		
 		#Zeilen Zusammenrechnen
-		let TOTAL=$GLOTIME-$GLITIME
+		#let TOTAL=$GLOTIME-$GLITIME
 		
-		echo "total= $TOTAL"
+	#	echo "total= $TOTAL"
         	#Gesamtergebnis Zusammenrechnen
-		RESULT=$((RESULT+$TOTAL))
-		TOTAL=""
+		#RESULT=$((RESULT+$TOTAL))
+		#TOTAL=""
 
-done 
+
 
          echo "Die Loginzeit des USER $2 in Sekunden: $RESULT"
 	echo "Die Loginzeit in Minuten: $((RESULT/60))"
